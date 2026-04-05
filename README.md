@@ -1,2 +1,3 @@
-# Nevada-Gaming-Regulatory-Intelligence-
- AI-powered regulatory intelligence terminal tracking NGCB enforcement actions and FinCEN advisories across Nevada gaming. Curated dataset of 50 cases with live AI analysis, pattern intelligence, and compliance implications — built for gaming law and compliance professionals.
+This repository contains the Nevada Gaming Regulatory Intelligence Engine — a curated intelligence tool built for gaming compliance and legal professionals operating in Nevada's regulated gaming environment.
+The terminal aggregates 50 publicly available enforcement actions from the Nevada Gaming Control Board (NGCB) and advisories from the Financial Crimes Enforcement Network (FinCEN) spanning 2022–2024. Each case is categorized by violation type, severity, jurisdiction, and penalty — and powered by AI analysis that generates plain-English summaries, regulatory significance assessments, compliance implications, and pattern intelligence across the full dataset.
+Built as part of the Gaming Intelligence Hub — a public portfolio demonstrating applied expertise at the intersection of Nevada gaming regulation, AML compliance, and AI governance.
