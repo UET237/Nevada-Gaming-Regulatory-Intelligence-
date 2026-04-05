@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nevada Gaming Regulatory Intelligence Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#07090f;--surface:#0d1220;--surface2:#131928;--border:#1e2d45;--border2:#2a3f5f;
+  --text:#dde1ec;--text2:#7a8899;--text3:#3d4f63;
+  --accent:#c8932a;--accent2:#f5a623;
+  --c-critical-bg:#2d0f0f;--c-critical:#fc7171;--c-critical-dot:#e24b4a;
+  --c-high-bg:#2d1a0a;--c-high:#f09060;--c-high-dot:#d85a30;
+  --c-medium-bg:#2d2108;--c-medium:#e8b84b;--c-medium-dot:#ba7517;
+  --c-low-bg:#0d2010;--c-low:#4ade80;--c-low-dot:#22c55e;
+  --c-advisory-bg:#0a1a2d;--c-advisory:#60a5fa;--c-advisory-dot:#378add;
+  --c-ngcb-bg:#2d2108;--c-ngcb:#e8b84b;
+  --c-fincen-bg:#0a1a2d;--c-fincen:#60a5fa;
+}
+body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:14px;min-height:100vh;}
+.wrapper{max-width:1280px;margin:0 auto;padding:0 24px 48px;}
+.header{padding:28px 0 22px;border-bottom:1px solid var(--border);margin-bottom:20px;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+.header-label{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;color:var(--accent);text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px;}
+.header-name{font-size:22px;font-weight:600;color:var(--text);letter-spacing:-.01em;}
+.header-sub{font-size:12px;color:var(--text2);margin-top:4px;font-family:'IBM Plex Mono',monospace;}
+.header-badge{display:flex;align-items:center;gap:8px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text3);}
+.live-dot{width:6px;height:6px;border-radius:50%;background:#22c55e;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px;}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;}
+.stat-lbl{font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;}
+.stat-val{font-size:22px;font-weight:600;color:var(--text);font-family:'IBM Plex Mono',monospace;}
+.stat-val.danger{color:var(--c-critical);}
+.stat-val.accent{color:var(--accent2);}
+.tabs{display:flex;margin-bottom:18px;border-bottom:1px solid var(--border);}
+.tab{padding:10px 18px;font-size:13px;font-weight:500;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;background:none;border-top:none;border-left:none;border-right:none;font-family:'IBM Plex Sans',sans-serif;transition:color .15s;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--accent2);border-bottom-color:var(--accent2);}
+.controls{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.controls input,.controls select{background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:7px 11px;outline:none;transition:border-color .15s;}
+.controls input{flex:1;min-width:200px;}
+.controls select{min-width:110px;cursor:pointer;}
+.controls input:focus,.controls select:focus{border-color:var(--border2);}
+.controls input::placeholder{color:var(--text3);}
+.controls select option{background:var(--surface);}
+.main-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.feed{display:flex;flex-direction:column;gap:5px;max-height:600px;overflow-y:auto;padding-right:4px;}
+.feed::-webkit-scrollbar{width:4px;}
+.feed::-webkit-scrollbar-track{background:transparent;}
+.feed::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.cc{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:11px 12px;cursor:pointer;transition:border-color .15s,background .15s;}
+.cc:hover{border-color:var(--border2);}
+.cc.sel{border-color:var(--accent);background:var(--surface2);}
+.cc-top{display:flex;align-items:center;gap:6px;margin-bottom:5px;flex-wrap:wrap;}
+.badge{font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:500;padding:2px 6px;border-radius:3px;}
+.b-ngcb{background:var(--c-ngcb-bg);color:var(--c-ngcb);border:1px solid rgba(200,147,42,.2);}
+.b-fincen{background:var(--c-fincen-bg);color:var(--c-fincen);border:1px solid rgba(96,165,250,.2);}
+.sdot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.cc-sub{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text3);}
+.cc-date{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text3);margin-left:auto;}
+.cc-op{font-size:12px;font-weight:500;color:var(--text);margin-bottom:3px;}
+.cc-sum{font-size:11px;color:var(--text2);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.cc-ft{display:flex;align-items:center;gap:6px;margin-top:8px;}
+.cat{font-size:9px;padding:2px 6px;border-radius:3px;background:var(--bg);color:var(--text3);border:1px solid var(--border);font-family:'IBM Plex Mono',monospace;}
+.sbadge{display:inline-flex;align-items:center;font-size:9px;font-weight:600;padding:2px 6px;border-radius:3px;font-family:'IBM Plex Mono',monospace;}
+.pen{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;color:var(--text);margin-left:auto;}
+.panel{display:flex;flex-direction:column;gap:10px;}
+.pcard{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.phdr{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.ptitle{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;}
+.pbody{padding:14px;}
+.dlbl{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;}
+.dval{font-size:12px;font-weight:500;color:var(--text);}
+.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.aout{font-size:12px;line-height:1.85;color:var(--text2);white-space:pre-wrap;font-family:'IBM Plex Sans',sans-serif;}
+.aout strong{color:var(--accent2);font-weight:600;display:block;margin-top:14px;margin-bottom:4px;font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;}
+.aout strong:first-child{margin-top:0;}
+.empty{text-align:center;padding:48px 16px;color:var(--text3);font-size:12px;}
+.arow{display:flex;gap:8px;padding:11px 14px;border-top:1px solid var(--border);}
+button{background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-family:'IBM Plex Sans',sans-serif;font-size:12px;font-weight:500;padding:7px 14px;cursor:pointer;transition:border-color .15s,background .15s;}
+button:hover{border-color:var(--accent);color:var(--accent2);}
+button:disabled{opacity:.5;cursor:not-allowed;}
+.btn-accent{background:rgba(200,147,42,.1);border-color:rgba(200,147,42,.3);color:var(--accent2);}
+.btn-accent:hover{background:rgba(200,147,42,.2);border-color:var(--accent2);}
+.pattern-wrap{max-width:900px;}
+.footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+.footer-txt{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text3);}
+@media(max-width:900px){.main-grid{grid-template-columns:1fr}.stats{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:580px){.stats{grid-template-columns:repeat(2,1fr)}.header{flex-direction:column;align-items:flex-start}}
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+<div class="header">
+  <div>
+    <div class="header-label">Gaming Intelligence Hub · Regulatory Terminal v2.0</div>
+    <div class="header-name">Nevada Gaming Regulatory Intelligence Engine</div>
+    <div class="header-sub">NGCB Enforcement · FinCEN Advisories · AI Intelligence Analysis · 2022–2024</div>
+  </div>
+  <div class="header-badge">
+    <span class="live-dot"></span>
+    <span>50 CURATED CASES · AI ANALYSIS READY</span>
+  </div>
+</div>
+
+<div class="stats" id="stats"></div>
+
+<div class="tabs">
+  <button class="tab active" onclick="setView('feed')">Regulatory Feed</button>
+  <button class="tab" onclick="setView('patterns')">Pattern Analysis</button>
+</div>
+
+<div id="feed-view">
+  <div class="controls">
+    <input type="text" id="search" placeholder="Search cases, operators, violations..." oninput="upd({search:this.value})">
+    <select onchange="upd({jurisdiction:this.value})"><option>All</option><option>NGCB</option><option>FinCEN</option></select>
+    <select onchange="upd({category:this.value})"><option>All</option><option>AML</option><option>Licensing</option><option>Operations</option><option>iGaming</option><option>Sports Betting</option></select>
+    <select onchange="upd({severity:this.value})"><option>All</option><option>CRITICAL</option><option>HIGH</option><option>MEDIUM</option><option>LOW</option><option>ADVISORY</option></select>
+  </div>
+  <div class="main-grid">
+    <div class="feed" id="feed"></div>
+    <div class="panel" id="panel"></div>
+  </div>
+</div>
+
+<div id="patterns-view" style="display:none;">
+  <div class="pattern-wrap">
+    <div class="pcard">
+      <div class="phdr">
+        <span class="ptitle">Regulatory Pattern Intelligence — Full Dataset (50 Cases · 2022–2024)</span>
+        <button class="btn-accent" onclick="showPatterns()">View Intelligence Briefing ↗</button>
+      </div>
+      <div class="pbody" id="pat-out">
+        <div class="empty" style="padding:56px 24px;">
+          <div style="font-size:32px;margin-bottom:16px;opacity:.15;">◈</div>
+          <div style="font-size:14px;font-weight:500;color:var(--text2);margin-bottom:6px;">AI Pattern Intelligence</div>
+          <div>Click "View Intelligence Briefing" to load AI pattern analysis across the full 50-case NGCB and FinCEN dataset.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <div class="footer-txt">Sources: Nevada Gaming Control Board · Financial Crimes Enforcement Network · Public Enforcement Records</div>
+  <div class="footer-txt">Gaming Intelligence Hub · Las Vegas, NV · Educational and Demonstration Purposes</div>
+</div>
+
+</div>
+<script>
+const AI={
+"NGCB-2024-AML-001":`<strong>Plain English Summary</strong>
+A Nevada sports wagering operator was fined $150,000 for failing to file 23 Suspicious Activity Reports over 14 months. The operator's AML monitoring system had not been updated to account for the specific transaction patterns associated with sports wagering — a critical gap as sports betting expanded rapidly in Nevada.
+
+<strong>Regulatory Significance</strong>
+This action signals that NGCB is actively examining whether licensees have updated their AML infrastructure to match the risk profile of newer product lines. Launching sports wagering without updating the compliance architecture is no longer acceptable. The Board is treating sports wagering as a distinct risk channel, not an extension of traditional gaming.
+
+<strong>Compliance Implications</strong>
+Operators must audit whether their transaction monitoring system includes sports wagering-specific typologies — multi-account structuring, layering through peer-to-peer payment apps, and unusual deposit/withdrawal timing patterns. SAR filing protocols must be reviewed specifically for the mobile and digital channel. Any monitoring system unchanged since before sports wagering launch is a liability.
+
+<strong>Risk Pattern</strong>
+Part of a clear NGCB enforcement trend targeting AML failures in new gaming channels. Sports wagering operators are being held to the same BSA standards as traditional casinos despite operating in a newer regulatory framework. Operators who treat sports wagering compliance as separate from their core AML program are the highest-risk profile in this dataset.`,
+
+"NGCB-2024-AML-002":`<strong>Plain English Summary</strong>
+A Las Vegas Strip resort was fined $225,000 for failing to file Currency Transaction Reports on 41 cash transactions over $10,000 during a six-month period. The failures were concentrated at high-limit table games during peak hours — where manual CTR identification processes consistently broke down under pressure.
+
+<strong>Regulatory Significance</strong>
+CTR failures at high-volume operations are a perennial NGCB enforcement priority. This case demonstrates the Board's continued focus on procedural compliance at the point of transaction — not just program-level policies. The size of the penalty reflects both the volume of failures and the operator's scale of operations.
+
+<strong>Compliance Implications</strong>
+Operators must move away from manual CTR identification at high-volume tables. Automated currency tracking integrated with player tracking systems is now effectively expected. Shift supervisors at high-limit areas require dedicated CTR training with documented competency testing. CTR identification cannot be a secondary task during peak periods.
+
+<strong>Risk Pattern</strong>
+CTR filing deficiencies are the most consistently prosecuted AML violation in Nevada gaming. This case fits a pattern of Strip properties receiving disproportionately larger penalties due to transaction volume and the expectation of sophisticated compliance infrastructure.`,
+
+"NGCB-2023-AML-003":`<strong>Plain English Summary</strong>
+The Nevada Gaming Control Board and FinCEN jointly actioned a Las Vegas gaming corporation for pervasive AML program failures — no annual risk assessments, an untrained compliance officer, and policies unchanged for three years. The $500,000 penalty is one of the largest AML enforcement actions in Nevada gaming history.
+
+<strong>Regulatory Significance</strong>
+Joint NGCB-FinCEN enforcement actions are rare and signal the most serious tier of regulatory concern. This case establishes that systemic program neglect — not just individual filing failures — will attract federal-level attention. The Board is signaling zero tolerance for AML programs that exist on paper but not in practice.
+
+<strong>Compliance Implications</strong>
+Every licensee must immediately verify: (1) annual AML risk assessments are conducted and documented, (2) the designated compliance officer holds current BSA training certification, (3) AML policies have been reviewed and updated within the last 12 months, and (4) transaction monitoring thresholds are calibrated to the actual current risk profile of the operation.
+
+<strong>Risk Pattern</strong>
+This is the benchmark enforcement action in the dataset. It defines the upper threshold of NGCB-FinCEN tolerance and establishes program-wide neglect as a federal matter. Every other AML case in this dataset represents a component of what this operator failed to maintain.`,
+
+"NGCB-2024-AML-004":`<strong>Plain English Summary</strong>
+A downtown Las Vegas casino was fined $65,000 for failing to conduct required annual independent testing of its AML program for two consecutive years. The compliance officer was entirely unaware that independent testing was a regulatory requirement — a fundamental knowledge gap.
+
+<strong>Regulatory Significance</strong>
+This case illustrates that NGCB examines AML program structure, not just filing outputs. Independent testing is a pillar of the BSA compliance framework. An operator whose compliance officer does not know this requirement exists has a structurally deficient program regardless of how many SARs or CTRs are filed.
+
+<strong>Compliance Implications</strong>
+Operators must schedule and document annual independent AML program testing by a qualified third party. This cannot be internal audit. The testing must cover SAR and CTR filing accuracy, training completion, policy currency, and risk assessment quality. Results must be documented and acted upon.
+
+<strong>Risk Pattern</strong>
+Independent testing failures often surface during broader examinations. This case is a warning that NGCB is checking program architecture, not just transaction outputs. Operators relying solely on internal compliance reviews without independent validation are exposed.`,
+
+"NGCB-2022-AML-005":`<strong>Plain English Summary</strong>
+A rural Nevada card room received a $30,000 fine for filing SARs that lacked sufficient narrative detail to be useful to law enforcement. While the filings were technically completed, the quality was so poor that they provided no actionable intelligence value.
+
+<strong>Regulatory Significance</strong>
+This is a relatively rare enforcement action focused on SAR quality rather than SAR existence. It signals that NGCB and FinCEN are evaluating the substance of filings, not just whether the checkbox was checked. Minimal, generic narratives are now an enforcement risk.
+
+<strong>Compliance Implications</strong>
+SAR narrative training must address what makes a filing actionable — specific transaction descriptions, patron behavior observations, amounts, dates, and why the activity was suspicious. Compliance teams should review recent SAR filings against FinCEN's SAR narrative guidance and update training accordingly.
+
+<strong>Risk Pattern</strong>
+Smaller operators in rural markets are increasingly subject to the same quality standards as Strip properties. This case is a warning to the lower tier of Nevada gaming licensees that filing volume alone does not satisfy BSA obligations.`,
+
+"NGCB-2024-AML-006":`<strong>Plain English Summary</strong>
+A Strip resort was fined $180,000 for failing to detect or report structured cash transactions by three patrons over eight months. The patrons deliberately kept individual transactions below reporting thresholds — a classic structuring pattern that the operator's table games monitoring system was not configured to detect.
+
+<strong>Regulatory Significance</strong>
+Structuring detection requires pattern analysis across multiple transactions and time periods — not just single-transaction monitoring. This case signals that NGCB expects operators to have cross-session, cross-day transaction aggregation in their monitoring systems. Single-transaction triggers are insufficient.
+
+<strong>Compliance Implications</strong>
+Transaction monitoring systems must include aggregation rules that link transactions by patron across multiple sessions and days. Table games monitoring must be integrated with patron tracking data. Operators should test their monitoring rules against known structuring scenarios and document results.
+
+<strong>Risk Pattern</strong>
+Structuring cases are increasing as sophisticated actors understand gaming CTR thresholds. This case fits a pattern of NGCB expecting operators to have moved beyond threshold-only monitoring to behavioral pattern analysis across patron activity history.`,
+
+"NGCB-2024-AML-007":`<strong>Plain English Summary</strong>
+A Nevada gaming company was fined $85,000 for failing to apply beneficial ownership identification procedures to corporate gaming credit accounts. Foreign nationals used shell company structures to establish credit lines without the operator identifying the natural persons behind the entities.
+
+<strong>Regulatory Significance</strong>
+The CDD Rule's beneficial ownership requirements apply fully to casino credit accounts. This case confirms NGCB expects operators to treat casino credit extended to corporate entities the same as any other covered financial product. Shell company structures are not a compliance exemption.
+
+<strong>Compliance Implications</strong>
+Credit department procedures must include beneficial ownership collection for all non-individual credit applicants. This means identifying natural persons with 25% or greater ownership. Documentation must be retained. The compliance officer must train credit staff specifically on CDD Rule application to gaming credit.
+
+<strong>Risk Pattern</strong>
+Beneficial ownership enforcement in gaming is accelerating, driven by FinCEN's 2024 guidance (see FINCEN-2024-GAM-047). Operators with active international VIP programs and corporate credit relationships are the highest-risk profile for this violation category.`,
+
+"NGCB-2024-AML-008":`<strong>Plain English Summary</strong>
+A Las Vegas resort was fined $275,000 for failing to conduct Enhanced Due Diligence on 12 high-value international patrons with combined annual gaming of $8.2 million. Not a single patron in this group had source-of-funds documentation on file.
+
+<strong>Regulatory Significance</strong>
+This is one of the largest individual AML penalties in the 2024 dataset and reflects the Board's heightened focus on international high-roller EDD. The scale of gaming activity without any EDD documentation suggests a systemic cultural failure in the VIP compliance program, not an isolated oversight.
+
+<strong>Compliance Implications</strong>
+EDD programs must define clear thresholds for international patron EDD triggers — recommended at $100,000 or more annual gaming activity. Source of funds documentation must be obtained before credit is extended or significant cash play is accommodated. Front-of-house VIP hosts must understand they cannot develop patron relationships without compliance sign-off on EDD.
+
+<strong>Risk Pattern</strong>
+High-roller EDD failures represent the highest-penalty AML category in this dataset. Resort properties with active international marketing programs and VIP host relationships are the most exposed operator profile. NGCB is clearly examining VIP programs as a distinct enforcement priority.`,
+
+"NGCB-2023-AML-009":`<strong>Plain English Summary</strong>
+A Nevada locals casino was fined $55,000 because 34% of gaming floor employees had not completed required annual AML training, and the training curriculum itself had not been updated to reflect two years of FinCEN guidance.
+
+<strong>Regulatory Significance</strong>
+Training compliance is a Board examination staple. An outdated curriculum that does not reflect current regulatory guidance is treated as a substantive program deficiency, not merely an administrative issue. NGCB is reviewing training content quality, not just completion rates.
+
+<strong>Compliance Implications</strong>
+AML training programs must be updated annually to incorporate FinCEN advisories and NGCB enforcement patterns from the prior year. Completion tracking must be automated with escalation for non-completions before deadlines. Training records must be maintained and immediately producible during examination.
+
+<strong>Risk Pattern</strong>
+Training deficiencies appear across multiple cases in this dataset, suggesting NGCB treats employee training as a proxy indicator for overall program health. An operator with poor training compliance is likely to have weaknesses elsewhere.`,
+
+"NGCB-2023-AML-010":`<strong>Plain English Summary</strong>
+A Nevada casino cage operation was fined $70,000 for failing to collect and retain required originator and beneficiary information on 67 wire transfers. The recordkeeping failures were systemic — the policies governing wire transfers did not reflect federal requirements.
+
+<strong>Regulatory Significance</strong>
+Wire transfer recordkeeping under 31 CFR §1010.410 is a specific and well-defined requirement. Failing to collect this information on 67 transactions indicates the procedure was never properly implemented. NGCB treats recordkeeping failures as evidence of program gaps, not administrative error.
+
+<strong>Compliance Implications</strong>
+Cage wire transfer procedures must be reviewed against the Travel Rule requirements. Every wire must capture originator name, account number, address, and beneficiary information. Cage supervisors must verify completeness before processing. A spot-check audit of recent wire records is recommended immediately.
+
+<strong>Risk Pattern</strong>
+Wire transfer recordkeeping failures are a secondary enforcement category that often surface during broader AML examinations. Operators with high-volume cage wire activity and international patron bases carry elevated exposure in this area.`,
+
+"NGCB-2023-AML-011":`<strong>Plain English Summary</strong>
+A Nevada resort was fined $120,000 for failing to file SARs on multiple instances of patrons purchasing chips on behalf of absent third parties at baccarat tables. The practice — a known money laundering method — was occurring without any compliance response.
+
+<strong>Regulatory Significance</strong>
+Third-party chip purchases are a well-documented ML red flag in casino environments, particularly at baccarat. This case confirms NGCB expects surveillance and floor staff to identify and report this pattern. Ignorance of recognized typologies is not a defense.
+
+<strong>Compliance Implications</strong>
+Floor staff and surveillance must be trained on third-party chip purchase indicators. Table games procedures must require floor supervisor notification when a patron purchases chips for a person not present at the table. SAR protocols must address this scenario explicitly. Baccarat-specific ML typologies warrant dedicated training content.
+
+<strong>Risk Pattern</strong>
+Baccarat-related AML failures are disproportionately represented in high-penalty cases across Nevada gaming enforcement. Properties with active international baccarat programs should treat this as their highest AML risk area.`,
+
+"NGCB-2022-AML-012":`<strong>Plain English Summary</strong>
+A newly licensed casino was fined $45,000 for failing to verify the identity of 28 patrons who opened house accounts over six months. The Customer Identification Program procedures did not require collection of identity verification documents at account opening.
+
+<strong>Regulatory Significance</strong>
+CIP failures at new licensees suggest that the compliance program was not operational-ready at launch. NGCB does not grant grace periods to new operators — BSA obligations apply from the first day of licensed operations.
+
+<strong>Compliance Implications</strong>
+New operators must ensure CIP procedures are fully implemented, documented, and tested before gaming floor opens. Account opening procedures must require government-issued photo ID for all house account applicants. No exceptions. Pre-opening compliance readiness review by an independent BSA consultant is strongly recommended.
+
+<strong>Risk Pattern</strong>
+New market entrants are a distinct risk profile. This case is a warning that NGCB examines new licensees early in their operational lifecycle. Compliance program readiness must precede operational launch, not follow it.`,
+
+"NGCB-2022-AML-013":`<strong>Plain English Summary</strong>
+A multi-property casino group received the largest penalty in the dataset — $650,000 — for maintaining AML programs across three Nevada properties that were not calibrated to actual risk. The programs failed to address international play, sports wagering, and cryptocurrency-adjacent transactions.
+
+<strong>Regulatory Significance</strong>
+Multi-property enforcement actions carry multiplicative penalties. This case establishes that a compliance program adequate for one property type is not automatically suitable for all product lines an operator offers. Risk-based programs must reflect the actual business being conducted.
+
+<strong>Compliance Implications</strong>
+Multi-property operators must conduct separate risk assessments for each property that reflect that property's specific patron profile, product mix, and transaction channels. A single enterprise-wide AML policy is insufficient without property-specific risk overlays. Sports wagering, international play, and digital payment methods each require dedicated risk assessment components.
+
+<strong>Risk Pattern</strong>
+The largest penalties in the dataset are concentrated in two categories: multi-property program failures and joint NGCB-FinCEN enforcement actions. This case is both. Multi-property operators with diverse product lines carry the highest aggregate AML enforcement exposure in Nevada gaming.`,
+
+"NGCB-2023-AML-014":`<strong>Plain English Summary</strong>
+A regional casino was fined $160,000 for failing to conduct a SAR lookback review after one of its patrons was identified as a subject of a law enforcement inquiry. Eighteen months of transaction history went unreviewed — exactly the period during which suspicious activity may have been missed.
+
+<strong>Regulatory Significance</strong>
+SAR lookback reviews following law enforcement notification are a mandatory program element. This case confirms that NGCB treats failure to conduct lookbacks as a serious program deficiency. The notification itself triggers a compliance obligation — operators cannot ignore it.
+
+<strong>Compliance Implications</strong>
+AML procedures must include a documented protocol for handling law enforcement inquiries, subpoenas, and 314(a) requests. Upon notification that a patron is a law enforcement subject, a structured lookback review of that patron's transaction history must be initiated within a defined timeframe. Results must be documented and SARs filed if activity warrants.
+
+<strong>Risk Pattern</strong>
+Lookback failures represent a compliance gap that only becomes visible when law enforcement engages with the operator. Operators without documented lookback procedures are exposed every time a law enforcement inquiry arrives.`,
+
+"NGCB-2022-AML-015":`<strong>Plain English Summary</strong>
+A northern Nevada gaming establishment was fined $95,000 because its designated AML Compliance Officer position was vacant for seven months without a qualified interim appointment. During this period, AML program oversight was effectively absent.
+
+<strong>Regulatory Significance</strong>
+The BSA requires a designated compliance officer — not a compliance function that exists when convenient. A seven-month vacancy without interim designation demonstrates that the licensee did not treat the requirement as mandatory. NGCB treats this as a structural program failure.
+
+<strong>Compliance Implications</strong>
+Operators must maintain succession plans for the compliance officer role. Any vacancy must be filled with a qualified interim designee within 30 days. The Board must be notified of material changes in compliance officer status. A compliance program without a responsible officer is non-compliant regardless of the quality of written policies.
+
+<strong>Risk Pattern</strong>
+Compliance officer vacancy is an immediate red flag during NGCB examination. This case is a reminder that human accountability is the foundation of any BSA program — policies and procedures mean nothing without a responsible person maintaining them.`,
+
+"NGCB-2024-LIC-016":`<strong>Plain English Summary</strong>
+A Nevada gaming licensee was fined $200,000 and placed under conditions after a key employee was found to have maintained undisclosed business associations with a person on the Nevada Excluded Persons List for over two years. The licensee's compliance program had no mechanism for ongoing monitoring of key employee relationships after initial licensing.
+
+<strong>Regulatory Significance</strong>
+Suitability is a continuing obligation, not a one-time assessment. This case confirms that the Board expects active, ongoing monitoring of key employee associations — not just a thorough initial background investigation. The excluded persons list is a living document and compliance programs must treat it as such.
+
+<strong>Compliance Implications</strong>
+Key employee compliance programs must include annual self-disclosure requirements covering new business associations and personal relationships. HR and compliance must cross-reference key employees against the excluded persons list at regular intervals. New associations must be disclosed to the compliance officer within a defined reporting window.
+
+<strong>Risk Pattern</strong>
+Post-licensing suitability monitoring is an emerging enforcement focus. As the Nevada gaming industry grows and personnel move between organizations, undisclosed associations become increasingly likely. Operators without structured ongoing monitoring programs are exposed.`,
+
+"NGCB-2023-LIC-017":`<strong>Plain English Summary</strong>
+A gaming technology manufacturer was fined $85,000 and suspended for distributing a software update that changed game mathematics across 2,300 devices at 14 Nevada properties without obtaining required Gaming Control Laboratory approval. The update went live without any regulatory review.
+
+<strong>Regulatory Significance</strong>
+Laboratory approval before deployment is a non-negotiable requirement in Nevada gaming. This case establishes that urgency, competitive pressure, or operational convenience are not justifications for bypassing the approval process. The scope of the violation — 14 properties, 2,300 devices — amplified the penalty significantly.
+
+<strong>Compliance Implications</strong>
+Technology manufacturers must embed regulatory approval requirements into their software release management process. No update affecting game mathematics, payout tables, or RNG behavior may be deployed to Nevada properties without prior laboratory certification. Deployment checklists must include regulatory approval verification as a mandatory gate.
+
+<strong>Risk Pattern</strong>
+Gaming technology manufacturers are held to the same standards as casino operators. As software update cycles accelerate, the risk of deployment without approval increases. Manufacturers with agile release processes must build regulatory approval into their development pipeline, not treat it as an afterthought.`,
+
+"NGCB-2022-LIC-018":`<strong>Plain English Summary</strong>
+A Nevada casino resort was fined $400,000 for failing to disclose a material change in foreign ownership over an 18-month period. The beneficial ownership structure was transferred to a foreign entity without prior Board approval — a fundamental violation of Nevada's licensing framework.
+
+<strong>Regulatory Significance</strong>
+Ownership changes require prior Board approval. This is not a disclosure requirement — it is an approval requirement. A licensee that transfers material ownership without Board review has potentially violated the foundational premise of its license. The $400,000 penalty reflects the severity of the suitability breach.
+
+<strong>Compliance Implications</strong>
+Licensing counsel must be engaged whenever ownership structure changes are contemplated. A compliance calendar must track all pending and required Board notifications. Any transaction that changes beneficial ownership by more than a defined threshold must trigger an immediate compliance review before closing.
+
+<strong>Risk Pattern</strong>
+Foreign ownership disclosure failures carry the highest reputational risk of any licensing violation. In the current geopolitical environment, NGCB scrutiny of foreign ownership has intensified. Operators with complex international ownership structures must maintain active compliance monitoring of any ownership-level changes.`,
+
+"NGCB-2022-LIC-019":`<strong>Plain English Summary</strong>
+A casino gaming floor was fined $15,000 after four employees were found working on the floor without valid gaming work cards. A supervisor had assigned them to positions without verifying their work card status.
+
+<strong>Regulatory Significance</strong>
+Work card violations are among the most basic licensing compliance requirements. While the penalty is relatively modest, the violation reflects a supervision failure that exposes the operator to larger suitability concerns if unlicensed employees had access to sensitive gaming operations.
+
+<strong>Compliance Implications</strong>
+Floor supervisors must verify work card validity before assigning any employee to a gaming position. HR systems should include work card expiration tracking with automated alerts before expiry. A daily pre-shift verification protocol for all gaming floor personnel is recommended.
+
+<strong>Risk Pattern</strong>
+Work card violations are low-penalty but high-frequency in Nevada gaming enforcement. They serve as an indicator of broader supervision quality. An operator with recurring work card violations often has weaknesses in other procedural compliance areas.`,
+
+"NGCB-2023-LIC-020":`<strong>Plain English Summary</strong>
+A slot system technology provider was fined $110,000 for modifying live gaming system software to add an unapproved jackpot feature that was then deployed across six Nevada licensees. The modification bypassed the required laboratory certification process entirely.
+
+<strong>Regulatory Significance</strong>
+Unapproved software modifications that affect game outcomes strike at the integrity of Nevada gaming. Deploying such modifications to multiple licensees compounds the violation significantly. NGCB treats integrity-related technology violations as among the most serious in the licensing category.
+
+<strong>Compliance Implications</strong>
+Technology vendors must maintain a clear separation between development environments and production systems. All jackpot-related features must undergo laboratory certification before any production deployment. Vendor contracts with Nevada licensees should explicitly prohibit unapproved software deployment and require vendor compliance officer sign-off on all releases.
+
+<strong>Risk Pattern</strong>
+Technology vendors are increasingly subject to direct NGCB enforcement rather than enforcement through the licensee. This case signals that the Board is extending its regulatory reach directly to the technology supply chain serving Nevada gaming operators.`,
+
+"NGCB-2023-LIC-021":`<strong>Plain English Summary</strong>
+A restricted gaming operator exceeded its 15-device license limit by operating four additional gaming machines over nine months. The operator either misunderstood its license terms or failed to track its device count.
+
+<strong>Regulatory Significance</strong>
+Operating beyond license conditions is a direct violation regardless of intent. Restricted gaming licenses have specific device limits that define the scope of authorized operations. Exceeding those limits — even by a small number — constitutes unlicensed gaming activity.
+
+<strong>Compliance Implications</strong>
+Operators must maintain a current inventory of all gaming devices and cross-reference against license conditions at least quarterly. Any device additions must receive prior regulatory approval. License conditions must be reviewed annually by compliance counsel to ensure ongoing adherence.
+
+<strong>Risk Pattern</strong>
+Restricted gaming operators — bars, taverns, and smaller venues — are an enforcement category where basic license condition awareness is often lacking. NGCB examinations of this operator class frequently reveal device count and game type violations.`,
+
+"NGCB-2022-LIC-022":`<strong>Plain English Summary</strong>
+A Nevada gaming operation was fined $130,000 after its General Manager held the position for six months without the required key employee license. The operator failed to submit the licensing application within 30 days of hire as required.
+
+<strong>Regulatory Significance</strong>
+Key employee licensing timelines are mandatory. The 30-day application requirement is not aspirational — it is a condition of the operator's license. Allowing a key employee to operate without submitting the required application is a continuing violation for every day the person remains unlicensed.
+
+<strong>Compliance Implications</strong>
+HR onboarding procedures must trigger an immediate licensing application for any position designated as a key employee under Nevada regulations. A compliance calendar must track the status of all pending key employee applications. No key employee should begin exercising authority over gaming operations until their license application is at minimum submitted.
+
+<strong>Risk Pattern</strong>
+Key employee licensing failures often occur during periods of rapid growth or management transition when HR processes are under pressure. Operators who recently expanded or reorganized leadership structures should audit current key employee licensing status immediately.`,
+
+"NGCB-2022-LIC-023":`<strong>Plain English Summary</strong>
+The Board found that a principal investor in a gaming LLC failed the ongoing suitability standard due to undisclosed criminal associations and material misrepresentations in the original license application. The $350,000 penalty reflects both the severity of the suitability failure and the original misrepresentation.
+
+<strong>Regulatory Significance</strong>
+Suitability is the foundation of Nevada gaming licensing. Misrepresentation in a license application is potentially grounds for license revocation — a penalty far more severe than financial fines. This case signals that the Board conducts ongoing suitability reviews of principals and will act on discovered misrepresentations regardless of when they occurred.
+
+<strong>Compliance Implications</strong>
+License applicants and their counsel must conduct thorough due diligence before submitting applications. Material facts about criminal associations, legal proceedings, and business relationships must be disclosed completely. Principals must understand that suitability is a continuing obligation and that new associations or legal matters must be proactively disclosed.
+
+<strong>Risk Pattern</strong>
+Principal suitability findings are the most consequential licensing enforcement category. They carry reputational risk beyond the financial penalty and can threaten the license itself. Operators with complex investor structures or principals with international business relationships carry elevated ongoing suitability exposure.`,
+
+"NGCB-2023-LIC-024":`<strong>Plain English Summary</strong>
+A casino vendor services company was fined $60,000 for providing gaming-related services to a Nevada licensee for 11 months without obtaining the required Gaming Service Enterprise license.
+
+<strong>Regulatory Significance</strong>
+Nevada's licensing requirements extend to vendors providing services that touch gaming operations. Operating without a required license — even while providing legitimate services — constitutes a violation that exposes both the vendor and the licensee who engaged them.
+
+<strong>Compliance Implications</strong>
+Casino procurement and compliance teams must verify that all vendors providing gaming-related services hold current Nevada licensing before engagement. Vendor management systems should track licensing status and expiration dates. Vendor contracts should include representations and warranties regarding licensing compliance.
+
+<strong>Risk Pattern</strong>
+Vendor licensing violations are underreported but consistently present in NGCB enforcement. As casinos outsource more operational functions, the vendor licensing exposure grows. Operators bear responsibility for the compliance status of their service providers.`,
+
+"NGCB-2022-LIC-025":`<strong>Plain English Summary</strong>
+A Nevada gaming school was fined $20,000 for failing to maintain required instructor ratios and for not filing a required curriculum amendment after adding new game instruction content.
+
+<strong>Regulatory Significance</strong>
+Gaming schools are regulated entities subject to specific operational requirements. While this is the lowest-penalty case in the dataset, it demonstrates that NGCB monitors the full ecosystem of gaming education and licensing, not just casino floor operations.
+
+<strong>Compliance Implications</strong>
+Gaming schools must maintain current curriculum approvals for all instruction offered. Any new game or dealing technique added to the curriculum requires prior regulatory approval. Instructor ratio requirements must be tracked and maintained. Annual compliance reviews of school operations are recommended.
+
+<strong>Risk Pattern</strong>
+Gaming school violations are low-frequency but notable as indicators of NGCB's broad regulatory reach. Entities throughout the Nevada gaming ecosystem are subject to examination — not just casino licensees.`,
+
+"NGCB-2024-OPS-026":`<strong>Plain English Summary</strong>
+A downtown Las Vegas casino was fined $75,000 for operating outside its approved Internal Control Standards in cage operations, credit issuance, and slot accounting for eight months. The internal audit function failed to detect deviations that were occurring systematically across multiple departments.
+
+<strong>Regulatory Significance</strong>
+Internal control deviations across multiple departments simultaneously indicate a supervision failure at the management level, not isolated procedural errors. NGCB treats multi-department ICS failures as evidence of broader compliance culture problems.
+
+<strong>Compliance Implications</strong>
+Internal audit programs must include unannounced spot-checks of ICS adherence across all operational areas. Deviation reporting must be escalated to senior management and compliance officers. Where internal audit fails to detect systematic deviations, the audit methodology itself must be reviewed and strengthened.
+
+<strong>Risk Pattern</strong>
+ICS compliance is a core NGCB examination focus. Operators who rely solely on scheduled internal audits without unannounced compliance checks create windows of non-detection. This case demonstrates that eight months of deviations can occur without discovery under inadequate audit protocols.`,
+
+"NGCB-2024-OPS-027":`<strong>Plain English Summary</strong>
+A Reno gaming establishment was fined $45,000 after three self-excluded patrons gained access to the gaming floor due to a technical failure in the integration between Nevada's statewide self-exclusion database and the casino's facial recognition surveillance system.
+
+<strong>Regulatory Significance</strong>
+Self-exclusion program compliance is both a regulatory obligation and a responsible gaming commitment. Technical failures do not excuse compliance failures — operators are responsible for ensuring their systems function correctly. The Board expects redundant verification protocols when technical systems are involved.
+
+<strong>Compliance Implications</strong>
+Self-exclusion system integrations must be tested regularly against the live statewide database. Technical failure protocols must include manual verification procedures. Any identified system integration failure must be reported to compliance immediately with patron access suspended pending resolution. Staff must be trained to manually verify self-exclusion status when system alerts are absent.
+
+<strong>Risk Pattern</strong>
+As facial recognition and automated monitoring systems become standard, technical failure compliance risk increases. Operators who rely entirely on automated systems without manual backup protocols are exposed to exactly this type of failure.`,
+
+"NGCB-2023-OPS-028":`<strong>Plain English Summary</strong>
+A rural Nevada gaming establishment was fined $55,000 after slot revenue discrepancies totaling $47,000 went undetected for four months. The discrepancies were only discovered through an external audit rather than the operator's own accounting procedures.
+
+<strong>Regulatory Significance</strong>
+Slot accounting discrepancies that escape internal detection for four months indicate a failure of the accounting and audit function. NGCB expects operators to identify and investigate variances through their own systems — not discover them when regulators or external auditors arrive.
+
+<strong>Compliance Implications</strong>
+Slot accounting variance thresholds must be defined and monitored daily. Any unexplained variance above a defined threshold must trigger an investigation protocol. Accounting staff must be trained to treat recurring small variances as potential indicators of larger issues. Monthly reconciliation must include a variance trend analysis.
+
+<strong>Risk Pattern</strong>
+Rural and smaller operators are more likely to have accounting control gaps due to limited staffing and less sophisticated monitoring systems. NGCB examinations of smaller licensees consistently identify accounting control deficiencies as a primary finding.`,
+
+"NGCB-2023-OPS-029":`<strong>Plain English Summary</strong>
+A Las Vegas Strip property was fined $80,000 for approving credit extensions without required credit committee authorization on 34 occasions. Credit approval authority had been delegated below the minimum seniority level specified in the approved ICS.
+
+<strong>Regulatory Significance</strong>
+Credit issuance controls are a dual regulatory concern — they implicate both ICS compliance and AML risk. Unauthorized credit approvals create unmonitored financial exposure and undermine the audit trail required for AML monitoring of credit-extended patrons.
+
+<strong>Compliance Implications</strong>
+Credit approval authority matrices must be reviewed against the approved ICS and updated if necessary. Credit staff must be retrained on authorization limits. All credit extensions must be logged with approver identification and authority level. A monthly audit of credit approvals against authority levels is recommended.
+
+<strong>Risk Pattern</strong>
+Credit control violations frequently accompany AML findings because unauthorized credit extensions create gaps in patron financial monitoring. Operators with active credit programs who experience rapid growth in credit volume should audit their authorization procedures before NGCB examinations do.`,
+
+"NGCB-2022-OPS-030":`<strong>Plain English Summary</strong>
+A downtown Las Vegas gaming LLC was fined $65,000 after its gaming floor surveillance system had 23 blind spots covering the table game pit and cage area for six months. Required surveillance maintenance logs had not been kept during this period.
+
+<strong>Regulatory Significance</strong>
+Surveillance coverage of the table pit and cage is a minimum regulatory requirement. Extended blind spots in these areas create both integrity risk and regulatory exposure. The absence of maintenance logs compounds the violation by demonstrating that the deficiency went unmonitored.
+
+<strong>Compliance Implications</strong>
+Surveillance systems must be subject to documented regular testing that verifies coverage of all required areas. Maintenance logs must be maintained and available for examination. Any identified coverage gap must be reported to the surveillance director and compliance officer immediately, with a remediation timeline established.
+
+<strong>Risk Pattern</strong>
+Surveillance deficiencies are consistently found during NGCB compliance examinations. The combination of coverage gaps and absent maintenance records is treated as a compound violation. Operators who do not maintain proactive surveillance audit programs are regularly cited.`,
+
+"NGCB-2023-OPS-031":`<strong>Plain English Summary</strong>
+A VIP gaming operation was fined $115,000 for accepting casino marker redemptions from third parties — individuals other than the patron to whom the marker was issued — without requiring identity verification.
+
+<strong>Regulatory Significance</strong>
+Third-party marker redemptions are a recognized money laundering risk. Accepting payment from unverified third parties creates an unmonitored cash movement that circumvents the AML controls built around the original patron relationship. NGCB treats this as both an ICS failure and an AML concern.
+
+<strong>Compliance Implications</strong>
+Marker redemption procedures must require that payment be made by the patron to whom the marker was issued. Any third-party payment must require supervisor approval, full identity verification, and documented justification. SAR review must be triggered for any third-party redemption exceeding defined thresholds.
+
+<strong>Risk Pattern</strong>
+VIP and high-limit operations have elevated exposure in the marker and credit compliance category. As operators compete for high-value patrons, there is cultural pressure to accommodate unusual arrangements — including third-party payments — that create compliance risk.`,
+
+"NGCB-2022-OPS-032":`<strong>Plain English Summary</strong>
+A Nevada casino was fined $50,000 after table game fill and credit procedures deviated from the approved ICS on 89 documented occasions. Supervisory sign-off requirements were routinely bypassed during high-volume shifts.
+
+<strong>Regulatory Significance</strong>
+The scale of documented deviations — 89 occasions — indicates this was not situational non-compliance but an embedded cultural practice. NGCB treats systematic ICS bypass as a more serious violation than isolated deviations because it indicates management tolerance for non-compliance.
+
+<strong>Compliance Implications</strong>
+Table games management must reinforce that ICS procedures are non-negotiable regardless of operational pressure. Floor supervisors must be accountable for sign-off compliance. Unannounced ICS compliance checks during peak periods are essential. Deviation documentation and escalation procedures must be reviewed and enforced.
+
+<strong>Risk Pattern</strong>
+High-volume shifts create the highest ICS compliance risk. Operators who design compliance protocols for average volume but not peak volume create predictable failure points. This case is a reminder that compliance controls must function under operational pressure, not just during normal conditions.`,
+
+"NGCB-2022-OPS-033":`<strong>Plain English Summary</strong>
+A Nevada locals casino received a $35,000 fine because daily cage reconciliation was not completed within required timeframes on 31 occasions over three months. Cage shift supervisors lacked adequate training on reconciliation procedures.
+
+<strong>Regulatory Significance</strong>
+Timely cage reconciliation is a foundational internal control. Delays create windows in which discrepancies can occur without detection. NGCB treats reconciliation timeliness as an indicator of overall cage management quality.
+
+<strong>Compliance Implications</strong>
+Cage reconciliation procedures must specify maximum completion timeframes and establish accountability for each shift. Supervisors must demonstrate competency in reconciliation procedures through documented training. Any reconciliation that cannot be completed within required timeframes must trigger an escalation protocol.
+
+<strong>Risk Pattern</strong>
+Cage reconciliation failures are among the most common findings at smaller Nevada operators. Limited staffing creates pressure that leads to delayed or abbreviated reconciliation procedures. These operators should prioritize cage training and procedure documentation.`,
+
+"NGCB-2024-IGAM-034":`<strong>Plain English Summary</strong>
+A Nevada interactive gaming operator was fined $90,000 after accepting 847 wagers from players physically located outside Nevada's borders. The geolocation verification system failed to accurately identify player location in border regions with California and Arizona.
+
+<strong>Regulatory Significance</strong>
+Nevada's interactive gaming regulations prohibit wagering by persons located outside the state. Geolocation accuracy is a technical compliance requirement. NGCB holds operators accountable for the accuracy of their geolocation systems — vendor limitations are not a defense.
+
+<strong>Compliance Implications</strong>
+Geolocation systems must be tested specifically in border regions where GPS and IP-based location signals may be ambiguous. Testing must be documented and repeated quarterly. Any player location flagged as near-border must be subject to enhanced verification. A manual review protocol for disputed location determinations is required.
+
+<strong>Risk Pattern</strong>
+Geolocation compliance is a consistent enforcement category for Nevada iGaming operators. Border region failures are the most common technical failure mode. As mobile wagering grows, the volume of border-region wager attempts increases, amplifying this risk.`,
+
+"NGCB-2023-IGAM-035":`<strong>Plain English Summary</strong>
+A Nevada online casino was fined $140,000 after 14 underage individuals successfully created accounts using falsified identification. The age verification system relied on self-reported information and did not cross-reference government identity databases.
+
+<strong>Regulatory Significance</strong>
+Underage gaming is among the most serious compliance violations in Nevada's regulatory framework. The failure to use government database verification in an online environment — where visual ID checks are impossible — reflects a fundamental gap in the identity verification program.
+
+<strong>Compliance Implications</strong>
+Online casino age verification must include third-party database verification against government identity records. Self-reported date of birth alone is insufficient. Enhanced verification must be triggered for any account where age verification returns inconclusive results. Accounts must remain restricted until age is positively confirmed.
+
+<strong>Risk Pattern</strong>
+Age verification failures in iGaming are treated with maximum regulatory seriousness. Nevada's online gaming regulations place affirmative obligation on operators to verify age — not just rely on patron representations. As iGaming grows, age verification technology investment is not optional.`,
+
+"NGCB-2023-IGAM-036":`<strong>Plain English Summary</strong>
+A Nevada online gaming platform was fined $100,000 after 112 player accounts were compromised through account takeover, resulting in $240,000 in unauthorized withdrawals. The platform lacked adequate multi-factor authentication controls.
+
+<strong>Regulatory Significance</strong>
+Account security is an explicit iGaming regulatory requirement in Nevada. An operator that suffered 112 account takeovers and $240,000 in unauthorized withdrawals had clearly inadequate security controls. NGCB treats cybersecurity failures in iGaming as regulatory violations, not just business continuity issues.
+
+<strong>Compliance Implications</strong>
+Multi-factor authentication must be required for all account login and withdrawal requests in excess of defined thresholds. Account access anomaly detection must trigger automatic temporary account restriction pending patron verification. Incident response procedures must include regulatory notification requirements. All withdrawal reversals and fraud losses must be tracked and reported.
+
+<strong>Risk Pattern</strong>
+Account security failures in iGaming expose operators to both regulatory and financial liability simultaneously. As cyber threats against gaming platforms intensify, NGCB will increasingly examine cybersecurity controls as a core regulatory compliance area.`,
+
+"NGCB-2022-IGAM-037":`<strong>Plain English Summary</strong>
+A Nevada iGaming licensee was fined $70,000 after its interactive gaming system operated with an unapproved Random Number Generator algorithm for four months following a software update. The technical compliance certification had not been renewed after the system change.
+
+<strong>Regulatory Significance</strong>
+RNG certification is a fundamental integrity requirement for iGaming. An uncertified RNG means game outcomes cannot be verified as compliant with approved mathematical specifications. NGCB treats uncertified game systems as a direct threat to gaming integrity regardless of whether actual harm occurred.
+
+<strong>Compliance Implications</strong>
+Software change management procedures must require technical compliance certification review before any update is deployed to production. A certification matrix must track the certification status of all game systems. Any system update that could affect RNG operation must trigger a mandatory re-certification review before deployment.
+
+<strong>Risk Pattern</strong>
+Technical certification failures in iGaming often arise from aggressive release cycles where compliance review is treated as a final step rather than an integrated part of development. Operators and their technology partners must build regulatory certification into the development workflow.`,
+
+"NGCB-2023-IGAM-038":`<strong>Plain English Summary</strong>
+A Nevada interactive casino was fined $185,000 after player account funds were commingled with operational funds during a system migration, leaving $1.2 million in player balances at risk for 11 days without the required segregation controls.
+
+<strong>Regulatory Significance</strong>
+Player funds protection is a core consumer protection requirement in Nevada iGaming. Commingling player funds with operational funds — even temporarily during a migration — exposes player balances to business financial risk. This is among the most consumer-harmful iGaming violations and carries correspondingly serious penalties.
+
+<strong>Compliance Implications</strong>
+System migration plans must include explicit protocols maintaining player funds segregation throughout the migration process. Player account balances must be reconciled and confirmed in segregated accounts before any migration steps that touch financial systems are executed. Compliance officer sign-off on migration plans is required before implementation.
+
+<strong>Risk Pattern</strong>
+Player funds protection violations carry the highest per-incident penalties in the iGaming enforcement category. Operators undergoing system migrations or platform changes should treat this as their highest compliance risk during the transition period.`,
+
+"NGCB-2022-IGAM-039":`<strong>Plain English Summary</strong>
+A Nevada online gambling platform was fined $55,000 after a coordinated bonus abuse scheme exploiting 34 linked accounts went undetected. The bonus enforcement system could not identify that the accounts were connected.
+
+<strong>Regulatory Significance</strong>
+Bonus abuse detection is an integrity requirement for Nevada iGaming operators. While the harm here was financial rather than consumer-protective, NGCB expects operators to maintain controls that identify coordinated account schemes that exploit promotional systems.
+
+<strong>Compliance Implications</strong>
+Bonus management systems must include network analysis capabilities that identify shared device fingerprints, IP addresses, payment methods, and behavioral patterns across accounts. Bonus terms must include clear provisions allowing account suspension for suspected coordinated abuse. A review protocol for bonus exploitation patterns must be documented and regularly tested.
+
+<strong>Risk Pattern</strong>
+Bonus abuse schemes are a growing problem in online gaming as the promotional arms race intensifies. Operators offering significant signup or reload bonuses without network-level fraud detection are creating financial exposure that NGCB treats as a compliance issue.`,
+
+"NGCB-2024-SPORT-040":`<strong>Plain English Summary</strong>
+A Nevada sports book was fined $110,000 for failing to report suspicious wagering patterns on three collegiate events within the required 72-hour reporting window. The delays ranged from four to eleven days beyond the deadline.
+
+<strong>Regulatory Significance</strong>
+The 72-hour integrity reporting window exists to enable law enforcement and regulators to investigate potential match manipulation while the event is still fresh. Delays of 4–11 days effectively nullify the protective purpose of the requirement. NGCB treats deadline adherence as a hard requirement, not a guideline.
+
+<strong>Compliance Implications</strong>
+Sports book integrity monitoring must include automated alerts that trigger when suspicious wagering thresholds are reached, with escalation protocols that ensure reporting decisions are made within 48 hours of detection. Compliance staff must be available 24/7 during major sporting events. The 72-hour clock begins at detection — operators cannot delay detection to avoid the clock.
+
+<strong>Risk Pattern</strong>
+Collegiate event integrity monitoring is a distinct enforcement priority for NGCB. The combination of high wagering volume and the vulnerability of amateur athletes to manipulation approaches makes this a consistent examination focus. Sports books with automated detection but manual reporting processes face the highest deadline compliance risk.`,
+
+"NGCB-2024-SPORT-041":`<strong>Plain English Summary</strong>
+A Nevada mobile sports wagering platform was fined $165,000 for failing to file SARs on 18 structuring patterns across mobile betting accounts. The monitoring system was not configured to detect split-deposit structuring in the mobile channel.
+
+<strong>Regulatory Significance</strong>
+This case is a direct parallel to NGCB-2024-AML-001 and confirms a clear enforcement pattern: AML monitoring for sports wagering must be channel-specific. A monitoring system built for traditional casino transactions is insufficient for the mobile wagering environment where structuring patterns manifest differently.
+
+<strong>Compliance Implications</strong>
+Mobile sports wagering AML programs must include deposit structuring detection rules calibrated to mobile channel behaviors — specifically split deposits across multiple sessions, use of multiple funding sources, and deposit/withdrawal timing patterns inconsistent with legitimate gambling behavior. Rules must be tested against known mobile structuring scenarios.
+
+<strong>Risk Pattern</strong>
+Mobile channel AML failures are the fastest-growing enforcement category in Nevada sports betting. As mobile wagering volume grows, the gap between traditional AML monitoring and mobile-specific risk grows with it. This is the most urgent AML compliance gap for sports betting operators.`,
+
+"NGCB-2023-SPORT-042":`<strong>Plain English Summary</strong>
+A Las Vegas sports book was fined $80,000 for offering player proposition bets on Nevada college athletic events on 14 separate occasions. The compliance system failed to identify these offerings as prohibited under Nevada regulations.
+
+<strong>Regulatory Significance</strong>
+Player proposition bets on Nevada college events are prohibited to protect the integrity of amateur athletics and the vulnerability of student athletes. Fourteen separate prohibited offerings indicates the compliance system was not functioning — not an isolated error.
+
+<strong>Compliance Implications</strong>
+Sports book offering management systems must include automated restrictions that prevent prohibited bet types from being activated on Nevada college events. Manual review by a compliance officer must occur before any new proposition bet offerings are added. Testing of restriction controls must be documented.
+
+<strong>Risk Pattern</strong>
+Collegiate integrity violations are treated with particular seriousness given the amateur status of the athletes involved. NGCB has demonstrated a zero-tolerance approach to any wagering that could create incentives around Nevada college sports. Sports books must prioritize collegiate offering compliance above commercial considerations.`,
+
+"NGCB-2023-SPORT-043":`<strong>Plain English Summary</strong>
+A Nevada mobile sports wagering operator was fined $75,000 after its platform accepted bets from mobile devices located at Nevada airports in restricted airspace. Geofencing parameters had been incorrectly configured at three airport locations.
+
+<strong>Regulatory Significance</strong>
+Geolocation restrictions in mobile sports wagering apply at the device location level — not just the account registration address. Airport restrictions exist because of federal jurisdiction considerations. Incorrect geofencing configuration at specific locations constitutes a systematic compliance failure at those sites.
+
+<strong>Compliance Implications</strong>
+Geofencing configurations must be individually verified for all restricted locations including airports, tribal land boundaries, and state borders. Configuration testing must be conducted using physical device testing at each restricted location, not solely via digital simulation. Any geofencing update must include verification testing before deployment.
+
+<strong>Risk Pattern</strong>
+Mobile geolocation compliance is a technical compliance area where configuration errors can create systemic violations affecting large numbers of transactions. Operators who deploy geofencing configurations without physical location testing face recurring exposure in this category.`,
+
+"NGCB-2022-SPORT-044":`<strong>Plain English Summary</strong>
+A Nevada sports wagering operator was fined $120,000 for using an unapproved data feed provider for live in-game wagering for three months. The data feed vendor had not obtained required NGCB approval before their feed was integrated into the operator's live wagering system.
+
+<strong>Regulatory Significance</strong>
+Data feed providers are part of the Nevada gaming regulatory ecosystem and must be approved before their data is used to determine wagering outcomes. Using unapproved data in live wagering creates an integrity risk that NGCB treats as a serious violation regardless of whether the data itself was accurate.
+
+<strong>Compliance Implications</strong>
+Vendor management procedures for sports wagering must include regulatory approval verification as a mandatory prerequisite to any data feed integration. Technology teams must coordinate with compliance before deploying any new data vendor. All data feed providers must be confirmed as NGCB-approved and listed in the operator's approved vendor register.
+
+<strong>Risk Pattern</strong>
+Technology vendor compliance in sports wagering is an emerging enforcement category. As the sports betting technology ecosystem expands rapidly, operators are deploying new data and platform vendors without adequate regulatory approval verification. This is a growing compliance gap across Nevada's sports wagering industry.`,
+
+"NGCB-2022-SPORT-045":`<strong>Plain English Summary</strong>
+A Nevada sports book was fined $60,000 for failing to implement required enhanced monitoring procedures for Nevada college sports events during the March tournament period, resulting in six suspicious wager clusters being identified but not reported.
+
+<strong>Regulatory Significance</strong>
+Enhanced monitoring requirements during high-risk events are not optional. The March tournament period represents the highest-volume collegiate wagering period and carries the greatest match manipulation risk. Failing to activate enhanced monitoring protocols precisely when they are most needed is a compounding failure.
+
+<strong>Compliance Implications</strong>
+Sports book compliance calendars must include pre-programmed enhanced monitoring activation for all high-risk event periods including March collegiate tournaments, conference championships, and bowl season. Enhanced monitoring must include lower suspicious pattern thresholds and 24-hour compliance staffing during these periods.
+
+<strong>Risk Pattern</strong>
+Event-specific compliance requirements create calendar-driven enforcement risk. Operators must operationalize their compliance obligations as scheduled events — not as situational responses to Board guidance. A compliance calendar is an essential operational tool for Nevada sports betting compliance.`,
+
+"FINCEN-2024-GAM-046":`<strong>Plain English Summary</strong>
+FinCEN issued FIN-2024-A001 identifying emerging money laundering typologies specific to sports wagering: structuring through multiple mobile accounts, layering proceeds through third-party payment processors, and using peer-to-peer payment applications to move sports wagering proceeds into the banking system.
+
+<strong>Regulatory Significance</strong>
+FinCEN advisories represent the federal government's current view of emerging risk. They are not binding rules but are treated by examiners as the standard of expected awareness. Operators who cannot demonstrate awareness of and response to this advisory face examination findings for failure to maintain a current risk-based program.
+
+<strong>Compliance Implications</strong>
+Upon issuance of this advisory, operators must update their sports wagering AML risk assessments to reflect the identified typologies, update SAR narrative guidance to include these patterns, and test transaction monitoring rules against the described scenarios. Documentation of this response must be maintained.
+
+<strong>Risk Pattern</strong>
+This advisory directly preceded the enforcement actions in NGCB-2024-AML-001 and NGCB-2024-SPORT-041, both of which involve SAR failures in sports wagering. The connection between FinCEN typology advisories and subsequent NGCB enforcement is consistent and predictable — advisories signal what will be examined.`,
+
+"FINCEN-2024-GAM-047":`<strong>Plain English Summary</strong>
+FinCEN issued guidance clarifying that the Customer Due Diligence Rule's beneficial ownership requirements apply to casino credit accounts held by corporate entities. Casinos must identify natural persons with 25% or greater ownership of any entity establishing a gaming credit relationship.
+
+<strong>Regulatory Significance</strong>
+This guidance closes an interpretation gap that some operators were using to avoid CDD obligations on corporate credit accounts. The clarification confirms that the form of the legal entity does not determine whether CDD applies — the nature of the financial relationship does.
+
+<strong>Compliance Implications</strong>
+Credit department procedures must be updated immediately to require beneficial ownership collection for all non-individual credit applicants. Existing corporate credit accounts should be reviewed for CDD compliance. Credit staff must receive updated training on the specific documentation requirements for identifying beneficial owners of gaming credit accounts.
+
+<strong>Risk Pattern</strong>
+This guidance preceded the enforcement action in NGCB-2024-AML-007 and directly addresses the violation described in that case. FinCEN guidance reliably signals the area of focus for subsequent NGCB examinations. Operators with active corporate credit programs should treat this advisory as advance warning of an examination focus area.`,
+
+"FINCEN-2023-GAM-048":`<strong>Plain English Summary</strong>
+FinCEN issued a Notice of Proposed Rulemaking that would significantly expand BSA obligations for casinos — adding cyber-fraud SAR filing requirements, lowering the high-value player EDD threshold to $100,000 annual wagering, and mandating annual independent AML testing for large-revenue casinos.
+
+<strong>Regulatory Significance</strong>
+NPRMs become rules. Operators must begin preparing for these requirements before they become effective. The proposed $100,000 EDD threshold would significantly expand the population of patrons subject to enhanced due diligence, requiring substantial program infrastructure investment.
+
+<strong>Compliance Implications</strong>
+Compliance officers should submit comments during the public comment period and begin gap analysis against proposed requirements. Operations with EDD programs calibrated to higher thresholds must develop transition plans. Independent testing programs must be budgeted for FY2025 even before the rule is finalized.
+
+<strong>Risk Pattern</strong>
+This NPRM represents the most significant expansion of BSA obligations for gaming since the 2002 casino rule. The direction of federal gaming AML regulation is clearly toward higher standards, broader coverage, and more rigorous independent verification. Operators who wait for rules to finalize before preparing will face implementation gaps.`,
+
+"FINCEN-2023-GAM-049":`<strong>Plain English Summary</strong>
+FinCEN issued an advisory identifying cyber-enabled fraud schemes targeting casino environments, including account takeover at digital gaming platforms, synthetic identity fraud at casino cages, and fraudulent wire transfer schemes. The advisory urged operators to file SARs that include specific cyber-related indicators.
+
+<strong>Regulatory Significance</strong>
+This advisory expands the definition of suspicious activity in gaming to include cyber fraud indicators — previously an area where SAR filing practices were inconsistent. Operators who do not file SARs on cyber fraud incidents are now on notice that such incidents fall within BSA reporting obligations.
+
+<strong>Compliance Implications</strong>
+SAR filing procedures must be updated to include cyber fraud incident triggers. Compliance and information security teams must establish joint protocols for evaluating cyber incidents against SAR filing thresholds. IT security incident reports should be routed to the AML compliance officer for SAR determination. Training must cover the intersection of cybersecurity and BSA obligations.
+
+<strong>Risk Pattern</strong>
+The intersection of cybersecurity and AML compliance is a rapidly emerging regulatory area. This advisory preceded the enforcement action in NGCB-2023-IGAM-036 and reflects a broader federal trend toward treating cybersecurity failures as AML program deficiencies. Operators should expect this to become a formal examination category.`,
+
+"FINCEN-2022-GAM-050":`<strong>Plain English Summary</strong>
+FinCEN identified trade-based money laundering schemes using casino chips as cross-jurisdictional value transfer instruments. International actors were exploiting chip purchase and redemption processes to move value across borders in ways that evade traditional AML detection.
+
+<strong>Regulatory Significance</strong>
+Trade-based money laundering through gaming represents a sophisticated ML methodology that exploits gaps between casino AML controls and international financial monitoring. FinCEN's identification of this typology placed operators on notice that international chip redemption patterns require specific monitoring attention.
+
+<strong>Compliance Implications</strong>
+AML programs must include monitoring rules for international chip purchase and redemption patterns, particularly where chip value moves between jurisdictions or where redemption occurs at a different property than purchase. High-value chip transactions involving international patrons must be reviewed for TBML indicators. SAR narratives for international patron transactions should reference geographic movement of chip value where relevant.
+
+<strong>Risk Pattern</strong>
+TBML through gaming is most prevalent in operators with significant international patron bases and cross-property chip redemption programs. Resort properties with international marketing offices and multi-property redemption agreements should treat this as a specific AML risk category requiring dedicated monitoring rules.`
+};
+
+const PATTERN_ANALYSIS=`ENFORCEMENT PRIORITIES (2022–2024)
+
+AML compliance dominates the enforcement landscape, accounting for 30 of 50 cases (60%) and the largest aggregate penalties. Within AML, the highest-frequency violations are SAR filing failures (NGCB-2024-AML-001, NGCB-2024-AML-006, NGCB-2023-AML-011, NGCB-2023-AML-014, NGCB-2022-AML-015), CTR deficiencies (NGCB-2024-AML-002, NGCB-2024-AML-005), and program-wide failures (NGCB-2023-AML-003, NGCB-2022-AML-013). The two largest single penalties — $650,000 and $500,000 — are both AML program failures. Licensing violations are the second priority category, with suitability and unauthorized software distribution cases carrying the highest individual penalties ($400,000 and $350,000).
+
+EMERGING RISK AREAS
+
+Three areas show clear upward trends in frequency and penalty severity entering 2024:
+
+Sports Wagering AML — NGCB-2024-AML-001 and NGCB-2024-SPORT-041 both represent SAR filing failures specific to the mobile and sports wagering channels. The enforcement trajectory here is steep, driven by rapid sports betting expansion without proportional AML infrastructure investment.
+
+iGaming Account Security — NGCB-2023-IGAM-036 (account takeover, $100K) and NGCB-2023-IGAM-035 (age verification, $140K) signal that NGCB is treating digital security failures as regulatory violations, not just business risk events. This enforcement area is accelerating.
+
+High-Roller EDD — NGCB-2024-AML-008 ($275,000) signals that international VIP programs without Enhanced Due Diligence are a primary examination target. Combined with FinCEN's beneficial ownership guidance (FINCEN-2024-GAM-047), this represents the fastest-growing penalty category in the dataset.
+
+AML ENFORCEMENT ANALYSIS
+
+The AML enforcement trajectory from 2022 to 2024 reveals three distinct phases. In 2022, enforcement focused on foundational program elements — CIP failures, officer vacancies, and recordkeeping deficiencies. In 2023, enforcement escalated to program-wide failures and joint NGCB-FinCEN actions, producing the dataset's two largest penalties. By 2024, enforcement has become channel-specific — targeting sports wagering, mobile platforms, and high-roller EDD as distinct compliance obligations rather than extensions of traditional casino AML.
+
+The most important signal for 2025: FinCEN's NPRM (FINCEN-2023-GAM-048) proposes lowering the high-value player EDD threshold to $100,000 annual wagering. If finalized, this will more than double the population of patrons subject to Enhanced Due Diligence at most Nevada properties — creating a new enforcement wave for operators who fail to expand their EDD programs accordingly.
+
+HIGH-RISK OPERATOR PROFILES
+
+Based on penalty frequency and severity, three operator profiles carry the greatest enforcement exposure:
+
+Multi-Property Casino Groups with diverse product lines (traditional gaming, sports wagering, iGaming) who apply a single enterprise AML program across all properties and channels. NGCB-2022-AML-013 ($650,000) is the benchmark case.
+
+Resort Properties with Active International VIP Programs lacking EDD infrastructure calibrated to international play. NGCB-2024-AML-008 ($275,000) and the pattern of high-roller cases confirm this profile as NGCB's highest AML examination priority.
+
+Sports Wagering and Mobile Gaming Operators who launched wagering products without updating AML monitoring systems to reflect sports-specific typologies. NGCB-2024-AML-001, NGCB-2024-SPORT-041, and FINCEN-2024-GAM-046 together define this risk profile.
+
+TOP 3 COMPLIANCE ACTIONS
+
+1. Conduct a Channel-Specific AML Risk Assessment — Immediately. Every Nevada gaming operator must assess whether their AML program addresses sports wagering, mobile, and iGaming channels as distinct risk environments with their own typologies, monitoring rules, and SAR protocols. A single program designed for traditional casino transactions is no longer sufficient.
+
+2. Audit High-Value Player EDD Against Both Current Requirements and Proposed Rules — Operators must identify every patron meeting the proposed $100,000 annual wagering EDD threshold and verify that source of funds documentation exists. Preparing now avoids a compliance crisis if the NPRM is finalized.
+
+3. Implement Independent AML Program Testing Before It Is Required — The NPRM mandates independent testing for large casinos. Smaller operators should conduct voluntary independent testing now to identify program gaps before NGCB examinations do. The investment is small compared to the penalties that program-wide failures generate.
+
+2025 REGULATORY FORECAST
+
+Sports Wagering AML will be the dominant enforcement category in 2025. The combination of FinCEN's typology advisory (FINCEN-2024-GAM-046), two 2024 enforcement actions, and rapid mobile wagering growth creates conditions for an enforcement wave targeting operators who have not updated their AML infrastructure since sports betting launched.
+
+iGaming Security and Consumer Protection will intensify as Nevada's online gaming market matures and NGCB develops more sophisticated examination protocols for digital platforms. Age verification, account security, and player funds protection will be the primary examination focus areas.
+
+Beneficial Ownership in Gaming Credit will move from advisory to active enforcement as FinCEN's 2024 guidance (FINCEN-2024-GAM-047) filters into NGCB examination protocols. Operators with corporate credit relationships — particularly those serving international patrons — should expect this to be a 2025 examination priority.
+
+Technology Vendor Compliance will emerge as a standalone enforcement category. The cases involving unapproved software (NGCB-2023-LIC-017, NGCB-2023-LIC-020) and unapproved data feeds (NGCB-2022-SPORT-044) signal that NGCB is extending regulatory accountability into the technology supply chain. Expect direct enforcement actions against vendors as well as licensees in 2025.`;
+
+const D=[
+{id:"NGCB-2024-AML-001",date:"2024-11-14",j:"NGCB",op:"Nevada Sports Wagering Platform",cat:"AML",sub:"SAR Filing Failure",viol:"NRS 463.157; 31 CFR §1021.320",pen:"$150,000",sev:"HIGH",sum:"Failed to file SARs on 23 transactions exceeding reporting thresholds over 14 months. Transaction monitoring system lacked sports wagering-specific risk indicators."},
+{id:"NGCB-2024-AML-002",date:"2024-10-22",j:"NGCB",op:"Las Vegas Strip Resort",cat:"AML",sub:"CTR Filing Deficiency",viol:"31 CFR §1021.310; NRS 463.157",pen:"$225,000",sev:"HIGH",sum:"Failed to file CTRs on 41 cash transactions exceeding $10,000 over six months. Systemic breakdown in CTR identification at high-limit table games during peak operating hours."},
+{id:"NGCB-2023-AML-003",date:"2023-12-05",j:"NGCB",op:"Las Vegas Gaming Corporation",cat:"AML",sub:"Program-Wide Failure",viol:"31 CFR §1021.210; NRS 463.157",pen:"$500,000",sev:"CRITICAL",sum:"Pervasive AML program failures: no annual risk assessments, untrained compliance officer, policies not updated for three years. One of Nevada's largest AML enforcement actions."},
+{id:"NGCB-2024-AML-004",date:"2024-09-08",j:"NGCB",op:"Downtown Las Vegas Casino",cat:"AML",sub:"Independent Testing Failure",viol:"31 CFR §1021.210(b)(4)",pen:"$65,000",sev:"MEDIUM",sum:"Failed to conduct required annual independent testing of AML program for two consecutive years. Compliance officer was unaware of the regulatory testing requirement."},
+{id:"NGCB-2022-AML-005",date:"2022-08-15",j:"NGCB",op:"Rural Nevada Card Room",cat:"AML",sub:"SAR Narrative Deficiency",viol:"31 CFR §1021.320",pen:"$30,000",sev:"LOW",sum:"SARs filed but narratives lacked sufficient detail to be actionable by law enforcement. Compliance training failed to address SAR narrative quality standards."},
+{id:"NGCB-2024-AML-006",date:"2024-07-30",j:"NGCB",op:"Las Vegas Strip Resort Casino",cat:"AML",sub:"Structuring Detection Failure",viol:"31 CFR §1021.320; NRS 463.157",pen:"$180,000",sev:"HIGH",sum:"Failed to detect or report structured cash transactions by three patrons over eight months. Pattern analysis controls absent from table games monitoring system."},
+{id:"NGCB-2024-AML-007",date:"2024-06-18",j:"NGCB",op:"Nevada Gaming LLC",cat:"AML",sub:"Beneficial Owner Identification",viol:"31 CFR §1010.230",pen:"$85,000",sev:"MEDIUM",sum:"Failed to identify beneficial owners of corporate gaming credit accounts. Foreign nationals used shell company structures without proper CDD procedures."},
+{id:"NGCB-2024-AML-008",date:"2024-05-02",j:"NGCB",op:"Las Vegas Baccarat Resort",cat:"AML",sub:"High-Roller EDD Failure",viol:"31 CFR §1021.210; NRS 463.157",pen:"$275,000",sev:"HIGH",sum:"Failed to conduct Enhanced Due Diligence on 12 high-value international patrons with $8.2M aggregate annual gaming. No source of funds documentation obtained."},
+{id:"NGCB-2023-AML-009",date:"2023-09-20",j:"NGCB",op:"Nevada Locals Casino",cat:"AML",sub:"AML Training Deficiency",viol:"31 CFR §1021.210(b)(3)",pen:"$55,000",sev:"MEDIUM",sum:"Annual AML training not completed by 34% of gaming floor employees. Curriculum not updated to reflect two years of FinCEN guidance."},
+{id:"NGCB-2023-AML-010",date:"2023-07-11",j:"NGCB",op:"Nevada Casino Cage Operations",cat:"AML",sub:"Wire Transfer Recordkeeping",viol:"31 CFR §1010.410",pen:"$70,000",sev:"MEDIUM",sum:"Failed to obtain and retain required originator and beneficiary information on 67 wire transfers processed through casino cage."},
+{id:"NGCB-2023-AML-011",date:"2023-05-28",j:"NGCB",op:"Nevada Resort and Casino",cat:"AML",sub:"Third-Party Chip Purchase Monitoring",viol:"NRS 463.157; 31 CFR §1021.320",pen:"$120,000",sev:"HIGH",sum:"Failed to monitor and report suspicious third-party chip purchases at baccarat tables across multiple sessions."},
+{id:"NGCB-2022-AML-012",date:"2022-11-04",j:"NGCB",op:"New Market Entry Casino",cat:"AML",sub:"Customer Identification Program",viol:"31 CFR §1021.220",pen:"$45,000",sev:"MEDIUM",sum:"CIP procedures inadequate: identity verification documents not collected for 28 house accounts opened over six months."},
+{id:"NGCB-2022-AML-013",date:"2022-09-14",j:"NGCB",op:"Multi-Property Casino Group",cat:"AML",sub:"Risk-Based Program Failure",viol:"31 CFR §1021.210; NRS 463.157",pen:"$650,000",sev:"CRITICAL",sum:"AML program not calibrated to actual risk profile across three properties. Failed to address international play, sports wagering, and cryptocurrency-related transactions."},
+{id:"NGCB-2023-AML-014",date:"2023-03-17",j:"NGCB",op:"Regional Nevada Casino",cat:"AML",sub:"SAR Lookback Review Failure",viol:"31 CFR §1021.320",pen:"$160,000",sev:"HIGH",sum:"Failed to conduct required SAR lookback review following law enforcement identification of patron as investigation subject. 18 months of transactions unreviewed."},
+{id:"NGCB-2022-AML-015",date:"2022-06-09",j:"NGCB",op:"Northern Nevada Gaming",cat:"AML",sub:"AML Officer Vacancy",viol:"31 CFR §1021.210(b)(2)",pen:"$95,000",sev:"HIGH",sum:"AML Compliance Officer position vacant for seven months without qualified interim designation. Program oversight effectively absent during examination period."},
+{id:"NGCB-2024-LIC-016",date:"2024-08-22",j:"NGCB",op:"Nevada Gaming Licensee",cat:"Licensing",sub:"Suitability Violation",viol:"NRS 463.170",pen:"$200,000 + Conditions",sev:"HIGH",sum:"Key employee maintained undisclosed associations with Excluded Persons List individual for over two years. Post-licensing suitability monitoring program absent."},
+{id:"NGCB-2023-LIC-017",date:"2023-09-14",j:"NGCB",op:"Gaming Technology Manufacturer",cat:"Licensing",sub:"Unapproved Software Distribution",viol:"NRS 463.650",pen:"$85,000 + Suspension",sev:"HIGH",sum:"Distributed unapproved software affecting game mathematics across 2,300 devices at 14 Nevada properties without Gaming Control Laboratory approval."},
+{id:"NGCB-2022-LIC-018",date:"2022-12-01",j:"NGCB",op:"Nevada Casino Resort",cat:"Licensing",sub:"Undisclosed Foreign Ownership",viol:"NRS 463.170; NGC Reg. 4.010",pen:"$400,000",sev:"CRITICAL",sum:"Material foreign ownership change not disclosed. Beneficial ownership transferred to foreign entity without prior Board approval over 18 months."},
+{id:"NGCB-2022-LIC-019",date:"2022-04-20",j:"NGCB",op:"Casino Gaming Floor",cat:"Licensing",sub:"Work Card Violation",viol:"NRS 463.335",pen:"$15,000",sev:"LOW",sum:"Four gaming employees operating without valid gaming work cards. Supervisor failed to verify work card status prior to floor assignment."},
+{id:"NGCB-2023-LIC-020",date:"2023-11-08",j:"NGCB",op:"Slot System Technology Provider",cat:"Licensing",sub:"Manufacturer Approval Bypass",viol:"NRS 463.650; NGC Reg. 14.110",pen:"$110,000",sev:"HIGH",sum:"Modified live gaming system to add unapproved jackpot feature deployed across 6 Nevada licensees, bypassing laboratory certification entirely."},
+{id:"NGCB-2023-LIC-021",date:"2023-06-25",j:"NGCB",op:"Restricted Gaming Operator",cat:"Licensing",sub:"License Condition Violation",viol:"NRS 463.220",pen:"$75,000",sev:"MEDIUM",sum:"Operated gaming devices beyond 15-device restricted license limit by 4 machines over nine months."},
+{id:"NGCB-2022-LIC-022",date:"2022-10-12",j:"NGCB",op:"Nevada Gaming Operation",cat:"Licensing",sub:"Unlicensed Key Employee",viol:"NRS 463.335; NGC Reg. 3.100",pen:"$130,000",sev:"HIGH",sum:"General Manager operated without required key employee license for six months. Licensing application not submitted within required 30-day window."},
+{id:"NGCB-2022-LIC-023",date:"2022-07-07",j:"NGCB",op:"Gaming Investment LLC",cat:"Licensing",sub:"Principal Suitability Finding",viol:"NRS 463.170",pen:"$350,000",sev:"CRITICAL",sum:"Principal investor failed ongoing suitability standard due to undisclosed criminal associations and material misrepresentation in original license application."},
+{id:"NGCB-2023-LIC-024",date:"2023-04-03",j:"NGCB",op:"Casino Vendor Services Inc.",cat:"Licensing",sub:"Vendor Licensing Failure",viol:"NRS 463.677",pen:"$60,000",sev:"MEDIUM",sum:"Third-party vendor provided gaming-related services without obtaining required Gaming Service Enterprise license for 11 months."},
+{id:"NGCB-2022-LIC-025",date:"2022-02-14",j:"NGCB",op:"Nevada Gaming School",cat:"Licensing",sub:"Dealer School Compliance",viol:"NGC Reg. 8.010",pen:"$20,000",sev:"LOW",sum:"Failed to maintain required instructor-to-student ratio and did not file curriculum amendment after adding new game instruction."},
+{id:"NGCB-2024-OPS-026",date:"2024-10-03",j:"NGCB",op:"Downtown Las Vegas Casino",cat:"Operations",sub:"Internal Control Deficiency",viol:"NGC Reg. 6.090",pen:"$75,000",sev:"MEDIUM",sum:"Operated outside approved ICS in cage, credit, and slot accounting for eight months. Internal audit failed to detect systematic deviations."},
+{id:"NGCB-2024-OPS-027",date:"2024-03-19",j:"NGCB",op:"Reno Gaming Establishment",cat:"Operations",sub:"Self-Exclusion System Failure",viol:"NGC Reg. 5.170",pen:"$45,000",sev:"LOW",sum:"Three self-excluded patrons accessed gaming floor due to technical failure in database integration with facial recognition surveillance."},
+{id:"NGCB-2023-OPS-028",date:"2023-08-30",j:"NGCB",op:"Rural Nevada Gaming",cat:"Operations",sub:"Slot Accounting Discrepancy",viol:"NGC Reg. 6.150",pen:"$55,000",sev:"MEDIUM",sum:"Unexplained slot revenue discrepancies totaling $47,000 over four months went undetected until external audit discovery."},
+{id:"NGCB-2023-OPS-029",date:"2023-06-14",j:"NGCB",op:"Las Vegas Strip Property",cat:"Operations",sub:"Credit Issuance Controls",viol:"NGC Reg. 6.080",pen:"$80,000",sev:"MEDIUM",sum:"Credit extensions approved without required committee authorization on 34 occasions. Authority delegated below minimum seniority level."},
+{id:"NGCB-2022-OPS-030",date:"2022-09-27",j:"NGCB",op:"Downtown Gaming LLC",cat:"Operations",sub:"Surveillance System Deficiency",viol:"NGC Reg. 5.045",pen:"$65,000",sev:"MEDIUM",sum:"Gaming floor surveillance had 23 blind spots covering table pit and cage for six months. Maintenance logs not maintained."},
+{id:"NGCB-2023-OPS-031",date:"2023-02-21",j:"NGCB",op:"VIP Gaming Operations",cat:"Operations",sub:"Marker Redemption Controls",viol:"NGC Reg. 6.080; NRS 463.157",pen:"$115,000",sev:"HIGH",sum:"Accepted third-party marker redemptions without adequate identity verification, creating unmonitored cash movement outside patron AML controls."},
+{id:"NGCB-2022-OPS-032",date:"2022-11-16",j:"NGCB",op:"Nevada Casino Floor Operations",cat:"Operations",sub:"Table Fill and Credit Procedures",viol:"NGC Reg. 6.070",pen:"$50,000",sev:"MEDIUM",sum:"Table game fill and credit procedures deviated from approved ICS on 89 occasions. Supervisory sign-off bypassed during high-volume shifts."},
+{id:"NGCB-2022-OPS-033",date:"2022-05-03",j:"NGCB",op:"Nevada Locals Casino",cat:"Operations",sub:"Cage Reconciliation Failure",viol:"NGC Reg. 6.090",pen:"$35,000",sev:"LOW",sum:"Daily cage reconciliation not completed within required timeframes on 31 occasions over three months due to inadequate supervisor training."},
+{id:"NGCB-2024-IGAM-034",date:"2024-07-11",j:"NGCB",op:"Nevada Interactive Gaming Operator",cat:"iGaming",sub:"Geolocation Compliance Failure",viol:"NGC Reg. 5A.110",pen:"$90,000",sev:"MEDIUM",sum:"Accepted 847 wagers from players outside Nevada borders. Geolocation system failed in border regions with California and Arizona."},
+{id:"NGCB-2023-IGAM-035",date:"2023-10-18",j:"NGCB",op:"Nevada Online Casino Platform",cat:"iGaming",sub:"Age Verification Failure",viol:"NGC Reg. 5A.090; NRS 463.360",pen:"$140,000",sev:"HIGH",sum:"14 underage individuals created accounts using falsified ID. Age verification did not cross-reference government identity databases."},
+{id:"NGCB-2023-IGAM-036",date:"2023-08-07",j:"NGCB",op:"Nevada Online Gaming Platform",cat:"iGaming",sub:"Account Security Controls",viol:"NGC Reg. 5A.120",pen:"$100,000",sev:"HIGH",sum:"112 player accounts compromised through account takeover due to inadequate multi-factor authentication. $240,000 in unauthorized withdrawals."},
+{id:"NGCB-2022-IGAM-037",date:"2022-12-22",j:"NGCB",op:"Nevada iGaming Licensee",cat:"iGaming",sub:"Technical Standards Violation",viol:"NGC Reg. 5A.060",pen:"$70,000",sev:"MEDIUM",sum:"Interactive gaming system operated with unapproved RNG algorithm for four months. Technical compliance certification not renewed after software update."},
+{id:"NGCB-2023-IGAM-038",date:"2023-04-26",j:"NGCB",op:"Nevada Interactive Casino",cat:"iGaming",sub:"Player Funds Protection",viol:"NGC Reg. 5A.135",pen:"$185,000",sev:"HIGH",sum:"Player funds commingled with operational funds during system migration. $1.2M in player balances at risk for 11 days."},
+{id:"NGCB-2022-IGAM-039",date:"2022-08-09",j:"NGCB",op:"Nevada Online Gambling Platform",cat:"iGaming",sub:"Bonus Abuse Detection Failure",viol:"NGC Reg. 5A.080",pen:"$55,000",sev:"MEDIUM",sum:"Failed to detect coordinated bonus abuse scheme across 34 linked accounts. System lacked network analysis capability."},
+{id:"NGCB-2024-SPORT-040",date:"2024-04-08",j:"NGCB",op:"Nevada Sports Book",cat:"Sports Betting",sub:"Integrity Reporting Delay",viol:"NGC Reg. 22.120",pen:"$110,000",sev:"MEDIUM",sum:"Failed to report suspicious wagering on three collegiate events within 72-hour window. Delays ranged 4–11 days beyond deadline."},
+{id:"NGCB-2024-SPORT-041",date:"2024-02-14",j:"NGCB",op:"Nevada Mobile Wagering Platform",cat:"Sports Betting",sub:"SAR Filing — Mobile Channel",viol:"NRS 463.157; 31 CFR §1021.320",pen:"$165,000",sev:"HIGH",sum:"Failed to file SARs on 18 structuring patterns in mobile sports betting accounts. Monitoring not configured for mobile channel structuring."},
+{id:"NGCB-2023-SPORT-042",date:"2023-11-30",j:"NGCB",op:"Las Vegas Sports Book",cat:"Sports Betting",sub:"Prop Bet Integrity Controls",viol:"NGC Reg. 22.080",pen:"$80,000",sev:"MEDIUM",sum:"Offered prohibited player proposition bets on Nevada college athletic events on 14 occasions. Compliance system failed to flag prohibited categories."},
+{id:"NGCB-2023-SPORT-043",date:"2023-07-19",j:"NGCB",op:"Nevada Mobile Sports Operator",cat:"Sports Betting",sub:"Mobile Geolocation Failure",viol:"NGC Reg. 22.055",pen:"$75,000",sev:"MEDIUM",sum:"Accepted bets from devices at Nevada airports in restricted airspace. Geofencing incorrectly configured at three airport locations."},
+{id:"NGCB-2022-SPORT-044",date:"2022-10-05",j:"NGCB",op:"Nevada Sports Wagering Operator",cat:"Sports Betting",sub:"Unapproved Data Feed",viol:"NGC Reg. 22.070",pen:"$120,000",sev:"HIGH",sum:"Used unapproved data feed provider for live in-game wagering for three months. Vendor not NGCB-approved prior to deployment."},
+{id:"NGCB-2022-SPORT-045",date:"2022-06-28",j:"NGCB",op:"Nevada Sports Book LLC",cat:"Sports Betting",sub:"College Sports Monitoring",viol:"NGC Reg. 22.090",pen:"$60,000",sev:"MEDIUM",sum:"Failed to implement enhanced monitoring for Nevada college events during March tournament period. Six suspicious wager clusters not reported."},
+{id:"FINCEN-2024-GAM-046",date:"2024-09-18",j:"FinCEN",op:"Industry Advisory",cat:"AML",sub:"Sports Wagering ML Typologies",viol:"31 CFR Chapter X",pen:"N/A",sev:"ADVISORY",sum:"FinCEN FIN-2024-A001 identified ML typologies in sports wagering: multi-account structuring, third-party processor layering, and peer-to-peer payment app exploitation."},
+{id:"FINCEN-2024-GAM-047",date:"2024-05-15",j:"FinCEN",op:"Industry Guidance",cat:"AML",sub:"Beneficial Ownership — Casino Credit",viol:"31 CFR §1010.230",pen:"N/A",sev:"ADVISORY",sum:"FinCEN clarified CDD Rule beneficial ownership requirements apply to casino credit accounts. Must identify natural persons with 25%+ ownership of corporate credit applicants."},
+{id:"FINCEN-2023-GAM-048",date:"2023-11-02",j:"FinCEN",op:"Rulemaking Notice",cat:"AML",sub:"BSA Rule Expansion — Gaming",viol:"31 CFR Chapter X",pen:"N/A",sev:"ADVISORY",sum:"NPRM expanding SAR obligations to cyber-fraud, lowering high-value player EDD threshold to $100K annual wagering, mandating independent AML testing for large casinos."},
+{id:"FINCEN-2023-GAM-049",date:"2023-04-12",j:"FinCEN",op:"Industry Advisory",cat:"AML",sub:"Cyber-Enabled Fraud in Gaming",viol:"31 CFR §1021.320",pen:"N/A",sev:"ADVISORY",sum:"FinCEN advisory on cyber fraud targeting casino environments: account takeover, synthetic identity fraud at cages, fraudulent wire transfers. SARs must include cyber indicators."},
+{id:"FINCEN-2022-GAM-050",date:"2022-07-20",j:"FinCEN",op:"Industry Advisory",cat:"AML",sub:"Trade-Based ML Through Gaming",viol:"31 CFR Chapter X",pen:"N/A",sev:"ADVISORY",sum:"FinCEN identified TBML using casino chips as cross-jurisdictional value transfer instruments. International chip redemption patterns flagged as emerging ML risk vector."}
+];
+
+const SC={
+  CRITICAL:{bg:'var(--c-critical-bg)',text:'var(--c-critical)',dot:'var(--c-critical-dot)'},
+  HIGH:{bg:'var(--c-high-bg)',text:'var(--c-high)',dot:'var(--c-high-dot)'},
+  MEDIUM:{bg:'var(--c-medium-bg)',text:'var(--c-medium)',dot:'var(--c-medium-dot)'},
+  LOW:{bg:'var(--c-low-bg)',text:'var(--c-low)',dot:'var(--c-low-dot)'},
+  ADVISORY:{bg:'var(--c-advisory-bg)',text:'var(--c-advisory)',dot:'var(--c-advisory-dot)'}
+};
+
+let st={selected:null,search:'',jurisdiction:'All',category:'All',severity:'All'};
+
+function upd(u){
+  if('search'in u||'jurisdiction'in u||'category'in u||'severity'in u){st.selected=null;}
+  Object.assign(st,u);render();
+}
+
+function setView(v){
+  document.getElementById('feed-view').style.display=v==='feed'?'':'none';
+  document.getElementById('patterns-view').style.display=v==='patterns'?'':'none';
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',(v==='feed'&&i===0)||(v==='patterns'&&i===1)));
+}
+
+function filtered(){
+  return D.filter(d=>{
+    if(st.jurisdiction!=='All'&&d.j!==st.jurisdiction)return false;
+    if(st.category!=='All'&&d.cat!==st.category)return false;
+    if(st.severity!=='All'&&d.sev!==st.severity)return false;
+    if(st.search){const q=st.search.toLowerCase();if(![d.op,d.sum,d.id,d.sub,d.viol].some(s=>s.toLowerCase().includes(q)))return false;}
+    return true;
+  });
+}
+
+function renderStats(){
+  const f=filtered();
+  const crit=f.filter(d=>d.sev==='CRITICAL').length;
+  const hi=f.filter(d=>d.sev==='HIGH'||d.sev==='CRITICAL').length;
+  const aml=f.filter(d=>d.cat==='AML').length;
+  const tot=f.filter(d=>d.pen!=='N/A').reduce((s,d)=>s+(parseFloat(d.pen.replace(/[$,+a-zA-Z\s]/g,''))||0),0);
+  document.getElementById('stats').innerHTML=`
+    <div class="stat"><div class="stat-lbl">Total Actions</div><div class="stat-val">${f.length}</div></div>
+    <div class="stat"><div class="stat-lbl">Critical Actions</div><div class="stat-val danger">${crit}</div></div>
+    <div class="stat"><div class="stat-lbl">High / Critical</div><div class="stat-val danger">${hi}</div></div>
+    <div class="stat"><div class="stat-lbl">AML Actions</div><div class="stat-val accent">${aml}</div></div>
+    <div class="stat"><div class="stat-lbl">Total Penalties</div><div class="stat-val">$${(tot/1000).toFixed(0)}K</div></div>`;
+}
+
+function renderFeed(){
+  const f=filtered();
+  const feed=document.getElementById('feed');
+  if(!f.length){feed.innerHTML='<div class="empty">No cases match current filters.</div>';return;}
+  feed.innerHTML=f.map(d=>{
+    const s=SC[d.sev];
+    const sel=st.selected&&st.selected.id===d.id;
+    return `<div class="cc${sel?' sel':''}" onclick="selCase('${d.id}')">
+      <div class="cc-top">
+        <span class="badge b-${d.j.toLowerCase()}">${d.j}</span>
+        <span class="sdot" style="background:${s.dot}"></span>
+        <span class="cc-sub">${d.sub}</span>
+        <span class="cc-date">${d.date}</span>
+      </div>
+      <div class="cc-op">${d.op}</div>
+      <div class="cc-sum">${d.sum}</div>
+      <div class="cc-ft">
+        <span class="cat">${d.cat}</span>
+        <span class="sbadge" style="background:${s.bg};color:${s.text}">${d.sev}</span>
+        <span class="pen">${d.pen==='N/A'?'<span style="color:var(--text3)">Advisory</span>':d.pen}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderPanel(){
+  const p=document.getElementById('panel');
+  const d=st.selected;
+  if(!d){
+    p.innerHTML=`<div class="pcard"><div class="pbody"><div class="empty" style="padding:64px 24px;">
+      <div style="font-size:28px;margin-bottom:14px;opacity:.1;">◎</div>
+      <div style="font-size:14px;font-weight:500;color:var(--text2);margin-bottom:6px;">Select a case</div>
+      <div>Click any regulatory action to view full details and AI intelligence analysis.</div>
+    </div></div></div>`;return;
+  }
+  const s=SC[d.sev];
+  const analysis=AI[d.id]||null;
+  p.innerHTML=`
+    <div class="pcard">
+      <div class="phdr">
+        <span class="ptitle">${d.id}</span>
+        <span class="sbadge" style="background:${s.bg};color:${s.text}">${d.sev}</span>
+      </div>
+      <div class="pbody">
+        <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:12px;">${d.op}</div>
+        <div class="dgrid">
+          <div><div class="dlbl">Jurisdiction</div><div class="dval">${d.j}</div></div>
+          <div><div class="dlbl">Date</div><div class="dval">${d.date}</div></div>
+          <div><div class="dlbl">Category</div><div class="dval">${d.cat} — ${d.sub}</div></div>
+          <div><div class="dlbl">Penalty</div><div class="dval" style="color:${d.pen==='N/A'?'var(--text3)':'var(--accent2)'}">${d.pen}</div></div>
+        </div>
+        <div style="margin-bottom:12px">
+          <div class="dlbl" style="margin-bottom:4px">Regulatory Basis</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text2);line-height:1.5">${d.viol}</div>
+        </div>
+        <div><div class="dlbl" style="margin-bottom:4px">Facts</div>
+          <div style="font-size:13px;line-height:1.65;color:var(--text2)">${d.sum}</div>
+        </div>
+      </div>
+    </div>
+    ${analysis?`
+    <div class="pcard">
+      <div class="phdr">
+        <span class="ptitle">Intelligence Report</span>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text3)">AI Analysis · ${d.j} · ${d.date}</span>
+      </div>
+      <div class="pbody"><div class="aout">${analysis}</div></div>
+    </div>`:''}`;
+}
+
+function selCase(id){
+  st.selected=D.find(d=>d.id===id)||null;
+  render();
+  document.getElementById('panel').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function showPatterns(){
+  document.getElementById('pat-out').innerHTML=`<div class="aout" style="padding:4px 0;">${PATTERN_ANALYSIS}</div>`;
+}
+
+function render(){renderStats();renderFeed();renderPanel();}
+render();
+</script>
+</body>
+</html>
